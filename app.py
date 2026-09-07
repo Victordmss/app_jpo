@@ -9,6 +9,7 @@ Faithful reproduction of the mockup screenshot:
 
 import base64
 import json
+import re
 import time
 from pathlib import Path
 from typing import Optional
@@ -56,6 +57,12 @@ def inject_css() -> None:
 
 
 inject_css()
+
+# Keep-alive: prevent compute auto-stop by sending a heartbeat every 5 min
+st.components.v1.html(
+    '<script>setInterval(()=>fetch("/_stcore/health"),300000)</script>',
+    height=0,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -113,6 +120,7 @@ def _rim_payload(rim: Optional[dict]) -> Optional[dict]:
     return {
         "id": rim["id"],
         "name": rim["name"],
+        "display_id": rim.get("display_id", rim["name"]),
         "image": _image_data_uri(rim.get("image", "")),
     }
 
@@ -122,8 +130,8 @@ def _rim_payload(rim: Optional[dict]) -> Optional[dict]:
 # ---------------------------------------------------------------------------
 
 
-def create_3d_figure(vertices: np.ndarray, faces: np.ndarray, color: str = "#8BA4C7") -> go.Figure:
-    """Create a Plotly 3D mesh figure."""
+def create_3d_figure(vertices: np.ndarray, faces: np.ndarray, color: str = "#C0C8D4") -> go.Figure:
+    """Create a Plotly 3D mesh figure with metallic wheel rendering."""
     centroid = vertices.mean(axis=0)
     centered = vertices - centroid
     max_ext = np.abs(centered).max()
@@ -133,15 +141,15 @@ def create_3d_figure(vertices: np.ndarray, faces: np.ndarray, color: str = "#8BA
     fig = go.Figure(data=[go.Mesh3d(
         x=scaled[:, 0], y=scaled[:, 1], z=scaled[:, 2],
         i=faces[:, 0], j=faces[:, 1], k=faces[:, 2],
-        color=color, opacity=1.0, flatshading=True,
-        lighting=dict(ambient=0.4, diffuse=0.6, specular=0.3, roughness=0.5, fresnel=0.2),
-        lightposition=dict(x=100, y=200, z=300),
+        color=color, opacity=1.0, flatshading=False,
+        lighting=dict(ambient=0.65, diffuse=0.8, specular=0.6, roughness=0.3, fresnel=0.3),
+        lightposition=dict(x=200, y=200, z=400),
     )])
     fig.update_layout(
         scene=dict(
             xaxis=dict(visible=False), yaxis=dict(visible=False), zaxis=dict(visible=False),
             bgcolor="#FFFFFF", aspectmode="data",
-            camera=dict(eye=dict(x=1.5, y=1.5, z=1.0), center=dict(x=0, y=0, z=0), up=dict(x=0, y=0, z=1)),
+            camera=dict(eye=dict(x=1.2, y=1.2, z=0.6), center=dict(x=0, y=0, z=0), up=dict(x=0, y=0, z=1)),
         ),
         margin=dict(l=0, r=0, t=0, b=0),
         paper_bgcolor="rgba(0,0,0,0)",
@@ -156,19 +164,32 @@ def create_3d_figure(vertices: np.ndarray, faces: np.ndarray, color: str = "#8BA
 
 
 def resolve_interpolation_folder(rim_a_id: str, rim_b_id: str) -> Optional[tuple[Path, bool]]:
-    """Find precomputed interpolation folder for a pair."""
-    folder_ab = INTERPOLATIONS_DIR / f"{rim_a_id}__{rim_b_id}"
-    folder_ba = INTERPOLATIONS_DIR / f"{rim_b_id}__{rim_a_id}"
+    """Find the precomputed interpolation folder and whether display direction is reversed."""
+    folder_ab = INTERPOLATIONS_DIR / f"{rim_a_id}_to_{rim_b_id}"
+    folder_ba = INTERPOLATIONS_DIR / f"{rim_b_id}_to_{rim_a_id}"
     if folder_ab.exists() and folder_ab.is_dir():
         return folder_ab, False
-    elif folder_ba.exists() and folder_ba.is_dir():
+    if folder_ba.exists() and folder_ba.is_dir():
         return folder_ba, True
     return None
 
 
-def get_interpolation_files(folder: Path) -> list[Path]:
-    """Get sorted step STL files."""
-    return sorted(folder.glob("step_*.stl"))
+def _extract_interpolation_step(path: Path) -> int:
+    """Extract the numeric interpolation step from a filename."""
+    match = re.search(r"(\d+)$", path.stem)
+    return int(match.group(1)) if match else -1
+
+
+def get_interpolation_files(folder: Path, ext: str = "png") -> list[tuple[int, Path]]:
+    """Get numerically sorted interpolation files by extension."""
+    files = list(folder.glob(f"interpolation_*.{ext}"))
+    return sorted(
+        ((
+            _extract_interpolation_step(path),
+            path,
+        ) for path in files),
+        key=lambda item: item[0],
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -263,15 +284,23 @@ _DB_CSS = """
 }
 .db-thumb-caption {
     margin-top: 4px;
-    font-size: 9.5px;
     color: #E3E8FF;
     text-align: center;
     line-height: 1.15;
     pointer-events: none;
+    max-width: 76px;
+}
+.db-thumb-id {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+.db-thumb-name {
+    font-size: 8.5px;
+    opacity: 0.9;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    max-width: 76px;
 }
 .db-thumb.is-selected {
     filter: brightness(0.45);
@@ -327,7 +356,17 @@ export default function(component) {
 
         const caption = document.createElement('div');
         caption.className = 'db-thumb-caption';
-        caption.textContent = rim.name;
+
+        const idLine = document.createElement('div');
+        idLine.className = 'db-thumb-id';
+        idLine.textContent = rim.display_id || rim.name;
+        caption.appendChild(idLine);
+
+        const nameLine = document.createElement('div');
+        nameLine.className = 'db-thumb-name';
+        nameLine.textContent = rim.name;
+        caption.appendChild(nameLine);
+
         thumb.appendChild(caption);
 
         if (isSelected) {
@@ -392,11 +431,18 @@ _CARD_CSS = """
 .wc-hint span {
     color: #EF3D3D;
 }
-.wc-name {
-    font-size: 20px;
-    font-weight: 700;
+.wc-id {
+    font-size: 32px;
+    font-weight: 800;
     color: #1B2A4A;
     margin: 0;
+    letter-spacing: 0.06em;
+}
+.wc-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #5E6A7D;
+    margin: -4px 0 0 0;
 }
 .wc-image-wrap {
     width: 100%;
@@ -458,6 +504,11 @@ export default function(component) {
         removeBtn.onclick = () => setTriggerValue('removed', true);
         root.appendChild(removeBtn);
 
+        const idEl = document.createElement('p');
+        idEl.className = 'wc-id';
+        idEl.textContent = rim.display_id || rim.name;
+        root.appendChild(idEl);
+
         const nameEl = document.createElement('p');
         nameEl.className = 'wc-name';
         nameEl.textContent = rim.name;
@@ -517,6 +568,107 @@ export default function(component) {
 wheel_database = st.components.v2.component("wheel_database", html=_DB_HTML, css=_DB_CSS, js=_DB_JS)
 wheel_card = st.components.v2.component("wheel_card", html=_CARD_HTML, css=_CARD_CSS, js=_CARD_JS)
 
+_SLIDER_HTML = """
+<div class="blend-slider-wrap" id="blend-slider-root">
+    <input type="range" class="blend-slider-input" id="blend-slider-input" />
+</div>
+"""
+
+_SLIDER_CSS = """
+* { box-sizing: border-box; }
+.blend-slider-wrap {
+    width: 100%;
+    padding: 8px 6px 2px 6px;
+}
+.blend-slider-input {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 999px;
+    outline: none;
+    background: linear-gradient(to right, #F04D4D var(--pct, 0%), #D9DDE7 var(--pct, 0%));
+}
+.blend-slider-input::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: none;
+    background: #F04D4D;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+}
+.blend-slider-input::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: none;
+    background: #F04D4D;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+}
+.blend-slider-input.is-reversed {
+    direction: rtl;
+}
+"""
+
+_SLIDER_JS = """
+export default function(component) {
+    const { data, parentElement, setTriggerValue } = component;
+    const input = parentElement.querySelector('#blend-slider-input');
+    const min = Number(data && data.min_step);
+    const max = Number(data && data.max_step);
+    const value = Number(data && data.value);
+    const reversed = Boolean(data && data.reversed);
+
+    input.min = Number.isFinite(min) ? min : 0;
+    input.max = Number.isFinite(max) ? max : 0;
+    input.step = 1;
+    input.classList.toggle('is-reversed', reversed);
+
+    /* Only set value from server when user is NOT actively dragging */
+    if (!input._dragging) {
+        input.value = Number.isFinite(value) ? value : input.min;
+    }
+
+    const paint = () => {
+        const denom = Math.max(1, Number(input.max) - Number(input.min));
+        let pct = ((Number(input.value) - Number(input.min)) / denom) * 100;
+        if (reversed) pct = 100 - pct;
+        input.style.setProperty('--pct', `${pct}%`);
+    };
+    paint();
+
+    /* Debounce: fire rerun only after user pauses 150 ms */
+    clearTimeout(input._debounceTimer);
+
+    input.onpointerdown = () => { input._dragging = true; };
+    input.onpointerup = () => {
+        input._dragging = false;
+        /* Send final value immediately on release */
+        clearTimeout(input._debounceTimer);
+        setTriggerValue('value', Number(input.value));
+    };
+
+    input.oninput = () => {
+        paint();
+        clearTimeout(input._debounceTimer);
+        input._debounceTimer = setTimeout(() => {
+            setTriggerValue('value', Number(input.value));
+        }, 150);
+    };
+}
+"""
+
+blend_slider = st.components.v2.component(
+    "blend_slider",
+    html=_SLIDER_HTML,
+    css=_SLIDER_CSS,
+    js=_SLIDER_JS,
+)
+
 
 # ---------------------------------------------------------------------------
 # Session state
@@ -530,14 +682,23 @@ if "interpolation_ready" not in st.session_state:
     st.session_state.interpolation_ready = False
 if "interpolation_files" not in st.session_state:
     st.session_state.interpolation_files = []
+if "interpolation_stl_files" not in st.session_state:
+    st.session_state.interpolation_stl_files = {}
 if "current_step" not in st.session_state:
     st.session_state.current_step = 0
+if "interpolation_reverse" not in st.session_state:
+    st.session_state.interpolation_reverse = False
+if "interpolation_steps" not in st.session_state:
+    st.session_state.interpolation_steps = []
 
 
 def clear_interpolation():
     """Reset interpolation state."""
     st.session_state.interpolation_ready = False
     st.session_state.interpolation_files = []
+    st.session_state.interpolation_stl_files = {}
+    st.session_state.interpolation_steps = []
+    st.session_state.interpolation_reverse = False
     st.session_state.current_step = 0
 
 
@@ -659,39 +820,69 @@ def _run_mix():
         st.warning("Aucune interpolation disponible pour cette paire.")
         return
 
-    folder, reversed_order = result
-    files = get_interpolation_files(folder)
-    if not files:
-        st.warning("Dossier d'interpolation vide.")
+    folder, reverse_display = result
+    png_files = [(step, path) for step, path in get_interpolation_files(folder, "png") if step >= 0]
+    stl_files = {step: str(path) for step, path in get_interpolation_files(folder, "stl") if step >= 0}
+    if not png_files:
+        st.warning("Aucune image d'interpolation disponible pour cette paire.")
         return
 
-    if reversed_order:
-        files = list(reversed(files))
-
+    step_numbers = [step for step, _ in png_files]
     st.session_state.interpolation_ready = True
-    st.session_state.interpolation_files = [str(f) for f in files]
-    st.session_state.current_step = 0
+    st.session_state.interpolation_files = {
+        step: str(path) for step, path in png_files
+    }
+    st.session_state.interpolation_stl_files = stl_files
+    st.session_state.interpolation_steps = step_numbers
+    st.session_state.interpolation_reverse = reverse_display
+    st.session_state.current_step = max(step_numbers) if reverse_display else min(step_numbers)
     st.rerun()
 
 
-def _render_result():
-    """Show interpolation result with slider."""
-    files = st.session_state.interpolation_files
-    n_steps = len(files)
-    if n_steps == 0:
-        return
-
-    step = st.slider("Blend", 0, n_steps - 1, st.session_state.current_step, key="blend_slider", label_visibility="collapsed")
-    st.session_state.current_step = step
-
-    stl_path = files[step]
+@st.dialog("Modèle 3D", width="large")
+def _show_3d_viewer(stl_path: str):
+    """Popup dialog showing the interactive 3D STL viewer."""
     mesh_data = load_stl_mesh(stl_path)
     if mesh_data:
         vertices, faces = mesh_data
         fig = create_3d_figure(vertices, faces)
-        st.plotly_chart(fig, use_container_width=True, key=f"viewer_{step}")
+        st.plotly_chart(fig, use_container_width=True)
     else:
-        st.info("Fichier STL introuvable.")
+        st.error("Impossible de charger le modèle 3D.")
+
+
+def _render_result():
+    """Show interpolation result with PNG images and optional 3D viewer."""
+    files = st.session_state.interpolation_files
+    stl_files = st.session_state.get("interpolation_stl_files", {})
+    step_numbers = st.session_state.interpolation_steps
+    if not files or not step_numbers:
+        return
+
+    slider_options = list(reversed(step_numbers)) if st.session_state.interpolation_reverse else step_numbers
+    default_step = st.session_state.current_step
+    if default_step not in slider_options:
+        default_step = slider_options[0]
+
+    step = st.select_slider(
+        "Blend",
+        options=slider_options,
+        value=default_step,
+        key="blend_slider",
+        label_visibility="collapsed",
+    )
+    st.session_state.current_step = step
+
+    png_path = files.get(step)
+    if png_path and Path(png_path).exists():
+        st.image(png_path, use_container_width=True)
+    else:
+        st.info("Image d'interpolation introuvable.")
+
+    stl_path = stl_files.get(step)
+    if stl_path and Path(stl_path).exists():
+        if st.button("Voir le modèle", key=f"view_3d_{step}", use_container_width=True):
+            _show_3d_viewer(stl_path)
 
     if st.button("Restart", key="restart_btn", use_container_width=True):
         st.session_state.selected_a = None

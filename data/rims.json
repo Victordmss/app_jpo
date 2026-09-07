@@ -1,72 +1,44 @@
 [
   {
-    "id": "rim_01",
-    "name": "Aero TEST",
-    "description": "Design aérodynamique à cinq branches",
-    "image": "assets/images/rim_01.png",
-    "stl": "assets/stl/originals/rim_01.stl"
+    "id": "50_LB_Wheel_Rim_255_20by9_surface",
+    "display_id": "W01",
+    "name": "50 LB 255",
+    "description": "Modèle 20x9 à signature 50 LB",
+    "image": "assets/images/50_LB_Wheel_Rim_255_20by9_surface.png"
   },
   {
-    "id": "rim_02",
-    "name": "Turbo Flux",
-    "description": "Jante sportive à flux turbulent",
-    "image": "assets/images/rim_02.png",
-    "stl": "assets/stl/originals/rim_02.stl"
+    "id": "PRODUIT+4141B3D35C2129E44141B3D35C2250A7_--D__IN_WORK",
+    "display_id": "W02",
+    "name": "Produit 250A7",
+    "description": "Version produit 250A7",
+    "image": "assets/images/PRODUIT+4141B3D35C2129E44141B3D35C2250A7_--D__IN_WORK.png"
   },
   {
-    "id": "rim_03",
-    "name": "Nova Shield",
-    "description": "Design protecteur à facettes multiples",
-    "image": "assets/images/rim_03.png",
-    "stl": "assets/stl/originals/rim_03.stl"
+    "id": "PRODUIT+4141B2BD074708B84141B2BD09E85D41_---__SHARED",
+    "display_id": "W03",
+    "name": "Produit 5D41",
+    "description": "Version produit 5D41",
+    "image": "assets/images/PRODUIT+4141B2BD074708B84141B2BD09E85D41_---__SHARED.png"
   },
   {
-    "id": "rim_04",
-    "name": "Stellar Vortex",
-    "description": "Branches en spirale dynamique",
-    "image": "assets/images/rim_04.png",
-    "stl": "assets/stl/originals/rim_04.stl"
+    "id": "IB_6-36-2613_Complete_Rim",
+    "display_id": "W04",
+    "name": "IB 36-2613",
+    "description": "Rim IB 36-2613",
+    "image": "assets/images/IB_6-36-2613_Complete_Rim.png"
   },
   {
-    "id": "rim_05",
-    "name": "Carbon Wave",
-    "description": "Ondulations inspirées de la fibre de carbone",
-    "image": "assets/images/rim_05.png",
-    "stl": "assets/stl/originals/rim_05.stl"
+    "id": "20_FC00ABF33420-005_NM_surface",
+    "display_id": "W05",
+    "name": "FC00ABF33420",
+    "description": "Surface FC00ABF33420-005",
+    "image": "assets/images/20_FC00ABF33420-005_NM_surface.png"
   },
   {
-    "id": "rim_06",
-    "name": "Prism Edge",
-    "description": "Géométrie prismatique à arêtes vives",
-    "image": "assets/images/rim_06.png",
-    "stl": "assets/stl/originals/rim_06.stl"
-  },
-  {
-    "id": "rim_07",
-    "name": "Helix Drive",
-    "description": "Motif hélicoïdal haute performance",
-    "image": "assets/images/rim_07.png",
-    "stl": "assets/stl/originals/rim_07.stl"
-  },
-  {
-    "id": "rim_08",
-    "name": "Quantum Ring",
-    "description": "Anneaux concentriques futuristes",
-    "image": "assets/images/rim_08.png",
-    "stl": "assets/stl/originals/rim_08.stl"
-  },
-  {
-    "id": "rim_09",
-    "name": "Blade Runner",
-    "description": "Lames effilées style cyberpunk",
-    "image": "assets/images/rim_09.png",
-    "stl": "assets/stl/originals/rim_09.stl"
-  },
-  {
-    "id": "rim_10",
-    "name": "Geo Matrix",
-    "description": "Maillage géométrique complexe",
-    "image": "assets/images/rim_10.png",
-    "stl": "assets/stl/originals/rim_10.stl"
+    "id": "IB_6-4580-252_Rim",
+    "display_id": "W06",
+    "name": "IB 4580-252",
+    "description": "Rim IB 4580-252",
+    "image": "assets/images/IB_6-4580-252_Rim.png"
   }
 ]
