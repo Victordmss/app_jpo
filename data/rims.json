@@ -33,12 +33,5 @@
     "name": "FC00ABF33420",
     "description": "Surface FC00ABF33420-005",
     "image": "assets/images/20_FC00ABF33420-005_NM_surface.png"
-  },
-  {
-    "id": "IB_6-4580-252_Rim",
-    "display_id": "W06",
-    "name": "IB 4580-252",
-    "description": "Rim IB 4580-252",
-    "image": "assets/images/IB_6-4580-252_Rim.png"
   }
 ]

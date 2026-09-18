@@ -130,30 +130,40 @@ def _rim_payload(rim: Optional[dict]) -> Optional[dict]:
 # ---------------------------------------------------------------------------
 
 
-def create_3d_figure(vertices: np.ndarray, faces: np.ndarray, color: str = "#C0C8D4") -> go.Figure:
-    """Create a Plotly 3D mesh figure with metallic wheel rendering."""
+def create_3d_figure(vertices: np.ndarray, faces: np.ndarray, color: str = "#8B95A8") -> go.Figure:
+    """Create a Plotly 3D mesh figure with a contrasted, brushed-metal wheel rendering."""
     centroid = vertices.mean(axis=0)
     centered = vertices - centroid
     max_ext = np.abs(centered).max()
     scale = 1.0 / max_ext if max_ext > 0 else 1.0
     scaled = centered * scale
 
-    fig = go.Figure(data=[go.Mesh3d(
-        x=scaled[:, 0], y=scaled[:, 1], z=scaled[:, 2],
-        i=faces[:, 0], j=faces[:, 1], k=faces[:, 2],
-        color=color, opacity=1.0, flatshading=False,
-        lighting=dict(ambient=0.65, diffuse=0.8, specular=0.6, roughness=0.3, fresnel=0.3),
-        lightposition=dict(x=200, y=200, z=400),
-    )])
+    fig = go.Figure(data=[
+        go.Mesh3d(
+            x=scaled[:, 0], y=scaled[:, 1], z=scaled[:, 2],
+            i=faces[:, 0], j=faces[:, 1], k=faces[:, 2],
+            color=color, opacity=1.0, flatshading=False,
+            lighting=dict(ambient=0.32, diffuse=0.85, specular=1.0, roughness=0.25, fresnel=0.35),
+            lightposition=dict(x=300, y=-100, z=500),
+        ),
+        go.Mesh3d(
+            x=scaled[:, 0], y=scaled[:, 1], z=scaled[:, 2],
+            i=faces[:, 0], j=faces[:, 1], k=faces[:, 2],
+            color="#FFFFFF", opacity=0.12, flatshading=False,
+            lighting=dict(ambient=0.0, diffuse=0.0, specular=0.9, roughness=0.05, fresnel=1.0),
+            lightposition=dict(x=-300, y=250, z=-200),
+            hoverinfo="skip",
+        ),
+    ])
     fig.update_layout(
         scene=dict(
             xaxis=dict(visible=False), yaxis=dict(visible=False), zaxis=dict(visible=False),
-            bgcolor="#FFFFFF", aspectmode="data",
+            bgcolor="#1B1F2A", aspectmode="data",
             camera=dict(eye=dict(x=1.2, y=1.2, z=0.6), center=dict(x=0, y=0, z=0), up=dict(x=0, y=0, z=1)),
         ),
         margin=dict(l=0, r=0, t=0, b=0),
-        paper_bgcolor="rgba(0,0,0,0)",
-        height=400,
+        paper_bgcolor="#1B1F2A",
+        height=460,
     )
     return fig
 
@@ -251,9 +261,9 @@ _DB_CSS = """
 }
 .db-thumb {
     position: relative;
-    width: 84px;
-    min-width: 84px;
-    height: 96px;
+    width: 104px;
+    min-width: 104px;
+    height: 108px;
     border-radius: 10px;
     background: rgba(255, 255, 255, 0.15);
     border: 2px solid transparent;
@@ -272,8 +282,8 @@ _DB_CSS = """
     cursor: grabbing;
 }
 .db-thumb img {
-    width: 42px;
-    height: 42px;
+    width: 68px;
+    height: 68px;
     object-fit: contain;
     pointer-events: none;
 }
@@ -281,26 +291,6 @@ _DB_CSS = """
     font-size: 26px;
     color: rgba(255, 255, 255, 0.6);
     pointer-events: none;
-}
-.db-thumb-caption {
-    margin-top: 4px;
-    color: #E3E8FF;
-    text-align: center;
-    line-height: 1.15;
-    pointer-events: none;
-    max-width: 76px;
-}
-.db-thumb-id {
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-}
-.db-thumb-name {
-    font-size: 8.5px;
-    opacity: 0.9;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 .db-thumb.is-selected {
     filter: brightness(0.45);
@@ -353,21 +343,6 @@ export default function(component) {
             icon.textContent = '⚙';
             thumb.appendChild(icon);
         }
-
-        const caption = document.createElement('div');
-        caption.className = 'db-thumb-caption';
-
-        const idLine = document.createElement('div');
-        idLine.className = 'db-thumb-id';
-        idLine.textContent = rim.display_id || rim.name;
-        caption.appendChild(idLine);
-
-        const nameLine = document.createElement('div');
-        nameLine.className = 'db-thumb-name';
-        nameLine.textContent = rim.name;
-        caption.appendChild(nameLine);
-
-        thumb.appendChild(caption);
 
         if (isSelected) {
             const check = document.createElement('div');
@@ -438,12 +413,7 @@ _CARD_CSS = """
     margin: 0;
     letter-spacing: 0.06em;
 }
-.wc-name {
-    font-size: 14px;
-    font-weight: 600;
-    color: #5E6A7D;
-    margin: -4px 0 0 0;
-}
+
 .wc-image-wrap {
     width: 100%;
     height: 150px;
@@ -508,11 +478,6 @@ export default function(component) {
         idEl.className = 'wc-id';
         idEl.textContent = rim.display_id || rim.name;
         root.appendChild(idEl);
-
-        const nameEl = document.createElement('p');
-        nameEl.className = 'wc-name';
-        nameEl.textContent = rim.name;
-        root.appendChild(nameEl);
 
         const imgWrap = document.createElement('div');
         imgWrap.className = 'wc-image-wrap';
@@ -708,14 +673,10 @@ def clear_interpolation():
 
 
 def render_header():
-    """Header: car logo above-right + gradient bar with title + Stellantis logo."""
-    car_logo = _image_data_uri("assets/logo.jpg")
+    """Header: gradient bar with title + Stellantis logo."""
     stellantis_logo = _image_data_uri("assets/stellantis_logo.png")
     st.markdown(f"""
     <div style="margin-top:-16px; margin-bottom:12px;">
-        <div style="display:flex; justify-content:flex-end;">
-            <img src="{car_logo}" alt="" style="width:150px; height:100px; object-fit:contain;" />
-        </div>
         <div style="background:linear-gradient(90deg,#1D1472,#2C3998); border-radius:14px; padding:14px 36px; display:flex; align-items:center; justify-content:space-between;">
             <h1 style="color:white; font-size:36px; font-weight:700; font-style:italic; margin:0;">AI Wheel Design Studio</h1>
             <img src="{stellantis_logo}" alt="STELLANTIS" style="height:48px; width:auto; object-fit:contain;" />
@@ -791,8 +752,13 @@ def _mount_wheel_card(slot: str, label: str, rims_by_id: dict) -> None:
         st.rerun()
 
 
+@st.fragment
 def _render_center(rims: list[dict]):
-    """Center zone: Mix button or interpolation result."""
+    """Center zone: Mix button or interpolation result.
+
+    Wrapped in a fragment so the Mix progress animation only reruns this
+    column, keeping the Model A / Model B cards from fading out while it runs.
+    """
     if st.session_state.interpolation_ready:
         _render_result()
     else:
@@ -836,7 +802,7 @@ def _run_mix():
     st.session_state.interpolation_steps = step_numbers
     st.session_state.interpolation_reverse = reverse_display
     st.session_state.current_step = max(step_numbers) if reverse_display else min(step_numbers)
-    st.rerun()
+    st.rerun(scope="fragment")
 
 
 @st.dialog("Modèle 3D", width="large")
